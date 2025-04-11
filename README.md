@@ -1,5 +1,8 @@
 # SISO: Sincronización de procesos
 
+> [!Note]
+> Todavía sigue en desarrollo para añadir más scripts y tests.
+
 ## Índice
 
 1. [Introducción](#introducción)
