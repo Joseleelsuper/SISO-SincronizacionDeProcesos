@@ -18,7 +18,13 @@ He resuelto en Python los pseudocódigos de las diapositivas de Sistemas Operati
 ## Ejecución de los scripts
 
 1. Tener instalado Python 3.10 o superior. Puedes descargarlo desde [aquí](https://www.python.org/downloads/).
-2. Ejecutar el srcipt que se desee visualizar.
+2. Clonar el repositorio o descargarlo como zip y descomprimirlo.
+
+```bash
+git clone https://github.com/Joseleelsuper/SISO-SincronizacionDeProcesos.git
+```
+
+3. Ejecutar el srcipt que se desee visualizar.
 
 En Windows:
 ```bash
