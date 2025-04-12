@@ -91,7 +91,8 @@ class TestProducerConsumer(unittest.TestCase):
 
         def producer_routine(producer_id):
             for i in range(3):  # Each producer produces 3 items
-                item = f"P{producer_id}_{i}"
+                item_str = f"P{producer_id}_{i}"
+                item = hash(item_str) % 10000  # Convert string to int
                 pc.produce(item, producer_id, "")
                 with items_lock:
                     produced_items.append(item)
@@ -160,7 +161,9 @@ class TestProducerConsumer(unittest.TestCase):
         # Run multiple producers and consumers concurrently
         def producer_routine(producer_id):
             for i in range(10):  # Each producer produces 10 items
-                pc.produce(f"P{producer_id}_{i}", producer_id, "")
+                item_str = f"P{producer_id}_{i}"
+                item = hash(item_str) % 10000  # Convert string to int
+                pc.produce(item, producer_id, "")
 
         def consumer_routine(consumer_id):
             for i in range(10):  # Each consumer consumes 10 items
@@ -235,7 +238,9 @@ class TestProducerConsumer(unittest.TestCase):
         def producer_routine(producer_id):
             for _ in range(5):  # Limit to 5 cycles
                 try:
-                    pc.produce(f"P{producer_id}", producer_id, "")
+                    item_str = f"P{producer_id}"
+                    item = hash(item_str) % 10000  # Convert string to int
+                    pc.produce(item, producer_id, "")
                     with count_lock:
                         producer_count[producer_id] += 1
                 except Exception:
@@ -292,7 +297,9 @@ class TestProducerConsumer(unittest.TestCase):
         # Create a producer routine that produces many items
         def producer_routine(producer_id):
             for i in range(20):  # Each producer produces 20 items
-                pc.produce(f"P{producer_id}_{i}", producer_id, "")
+                item_str = f"P{producer_id}_{i}"
+                item = hash(item_str) % 10000  # Convert string to int
+                pc.produce(item, producer_id, "")
                 with counter_lock:
                     produced[0] += 1
 
@@ -411,13 +418,19 @@ class TestProducerConsumer(unittest.TestCase):
         # Run multiple producers and consumers with intensive access
         threads = []
         for i in range(5):
-
             def intensive_producer(id=i):
                 for j in range(10):
                     try:
-                        pc.produce(f"P{id}_{j}", id, "")
+                        item_str = f"P{id}_{j}"
+                        item = hash(item_str) % 10000  # Convert string to int
+                        pc.produce(item, id, "")
                     except Exception:
-                        pass
+                        try:
+                            item_str = f"P{id}_{j}"
+                            item = hash(item_str) % 10000  # Convert string to int
+                            pc.produce(item, id, "")
+                        except Exception:
+                            pass
 
             def intensive_consumer(id=i):
                 for j in range(10):
@@ -448,17 +461,20 @@ class TestProducerConsumer(unittest.TestCase):
     def test_deadlock_prevention(self):
         """Test that the system prevents deadlocks"""
         pc = ProducerConsumer(buffer_size=2)
+        
+        # List to track which producers have been unblocked
+        blocked_producers = []
 
         # Fill the buffer
         pc.produce(1, 0, "")
         pc.produce(2, 0, "")
 
-        # Create multiple producers that will be blocked
-        blocked_producers = []
+        # Create several producer threads that will block
         for i in range(3):
-
             def producer_task(id=i):
-                pc.produce(f"P{id}", id, "")
+                item_str = f"P{id}"
+                item = hash(item_str) % 10000  # Convert string to int
+                pc.produce(item, id, "")
                 blocked_producers.append(id)
 
             thread = threading.Thread(target=producer_task)
@@ -511,7 +527,7 @@ class TestProducerConsumer(unittest.TestCase):
             # Try a normal produce and consume
             pc.produce = lambda item, producer_id, color: pc.buffer.append(item)
             pc.consume = (
-                lambda consumer_id, color: pc.buffer.pop(0) if pc.buffer else None
+                lambda consumer_id, color: pc.buffer.pop(0) if pc.buffer else 0
             )
 
             pc.produce(2, 1, "")
@@ -526,18 +542,18 @@ class TestProducerConsumer(unittest.TestCase):
         pc = ProducerConsumer(buffer_size=5)
 
         # Producer adds items in a specific order
-        pc.produce("item1", 0, "")
-        pc.produce("item2", 0, "")
-        pc.produce("item3", 0, "")
+        pc.produce(101, 0, "")  # Using numeric IDs instead of strings
+        pc.produce(102, 0, "")
+        pc.produce(103, 0, "")
 
         # Consumer should get items in the same order
         item1 = pc.consume(0, "")
         item2 = pc.consume(0, "")
         item3 = pc.consume(0, "")
 
-        self.assertEqual(item1, "item1", "First item should be consumed first")
-        self.assertEqual(item2, "item2", "Second item should be consumed second")
-        self.assertEqual(item3, "item3", "Third item should be consumed third")
+        self.assertEqual(item1, 101, "First item should be consumed first")
+        self.assertEqual(item2, 102, "Second item should be consumed second")
+        self.assertEqual(item3, 103, "Third item should be consumed third")
 
 
 if __name__ == "__main__":

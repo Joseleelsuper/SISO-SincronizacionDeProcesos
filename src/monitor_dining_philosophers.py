@@ -22,7 +22,7 @@ class DiningPhilosophers:
     Este monitor controla el acceso a los tenedores y la sincronización entre los filósofos.
     """
 
-    def __init__(self, number_of_philosophers=5):
+    def __init__(self, number_of_philosophers: int = 5):
         """Inicializa el monitor de filósofos comensales.
         Crea un número de filósofos y establece el estado inicial de los tenedores como libres.
 

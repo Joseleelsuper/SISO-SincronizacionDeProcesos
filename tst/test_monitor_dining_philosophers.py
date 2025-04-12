@@ -370,7 +370,7 @@ class TestDiningPhilosophers(unittest.TestCase):
         # Ejecutar múltiples filósofos con acceso intensivo
         threads = []
         for i in range(5):
-            def intensive_access(id=i):
+            def intensive_access_with_exception_handling(id=i):
                 for _ in range(20):  # 20 ciclos de tomar y soltar tenedores
                     try:
                         dp.pickup_forks(id, "")
@@ -378,16 +378,17 @@ class TestDiningPhilosophers(unittest.TestCase):
                     except Exception:
                         pass
             
-            thread = threading.Thread(target=intensive_access)
+            thread = threading.Thread(target=intensive_access_with_exception_handling)
             thread.daemon = True
             threads.append(thread)
             thread.start()
-            def intensive_access(id=i):
+            
+            def intensive_access_without_exception_handling(id=i):
                 for _ in range(20):  # 20 ciclos de tomar y soltar tenedores
                     dp.pickup_forks(id, "")
                     dp.putdown_forks(id, "")
             
-            thread = threading.Thread(target=intensive_access)
+            thread = threading.Thread(target=intensive_access_without_exception_handling)
             thread.daemon = True
             threads.append(thread)
             thread.start()
