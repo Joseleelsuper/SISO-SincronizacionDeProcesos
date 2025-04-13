@@ -9,7 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../')))
 from src.monitor_readers_writers import ReadersWriters, RESOURCE_STATES
 
 
-class TestReadersWriters(unittest.TestCase):
+class TestMonitorReadersWriters(unittest.TestCase):
     
     def setUp(self):
         # Patch time.sleep para acelerar los tests

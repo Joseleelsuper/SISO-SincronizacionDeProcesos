@@ -11,7 +11,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../')))
 from src.monitor_dining_philosophers import DiningPhilosophers, FORK_STATES, Philosopher
 
 
-class TestDiningPhilosophers(unittest.TestCase):
+class TestMonitorDiningPhilosophers(unittest.TestCase):
     
     def setUp(self):
         # Patch time.sleep para acelerar los tests
