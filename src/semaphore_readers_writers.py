@@ -1,7 +1,7 @@
-from abc import ABC
 import threading
 import time
 import random
+from abc import ABC
 
 try:
     from src.utils.colors import COLORS, RESET
@@ -22,76 +22,81 @@ NUM_READERS = 2
 RESOURCE_STATES = ["free", "reading", "writing"]
 
 
-class ReadersWriters:
+class SemaphoreReadersWriters:
     """
-    Monitor que implementa la solución al problema de los lectores y escritores.
+    Implementación del problema de los lectores y escritores utilizando semáforos.
     Gestiona el acceso a un recurso compartido entre lectores y escritores.
     """
 
     def __init__(self):
         """
-        Inicializa el monitor de lectores y escritores.
-        Establece el estado inicial del recurso y los contadores de lectores y escritores.
+        Inicializa la estructura de datos y los semáforos necesarios.
         """
+        # Estado inicial del recurso
         self.resource_state = RESOURCE_STATES[0]  # Estado inicial: libre
         self.readers_count = 0  # Contador de lectores activos
-        self.writers_waiting = 0  # Contador de escritores en espera
-        self.active_writer = False  # Indica si hay un escritor activo
-        self.condition = threading.Condition()  # Condición para sincronización
-        self.resource_content = (
-            "Contenido inicial del recurso"  # Contenido del recurso compartido
-        )
+        self.resource_content = "Contenido inicial del recurso"  # Contenido del recurso compartido
+        
+        # Semáforos para sincronización
+        self.mutex = threading.Semaphore(1)  # Para proteger la modificación del contador de lectores
+        self.write_lock = threading.Semaphore(1)  # Para acceso exclusivo al recurso para escritores
+        self.resource_mutex = threading.Semaphore(1)  # Para actualizar el estado del recurso
 
     def start_read(self, reader_id: int, color: str):
         """
         Permite que un lector comience a leer el recurso.
-        Se bloquea si hay un escritor activo o en espera.
+        Se bloquea si hay un escritor activo.
 
         Args:
             reader_id (int): ID del lector.
             color (str): Color del lector para imprimir mensajes en la consola.
         """
-        with self.condition:
-            # Esperar si hay un escritor activo o escritores en espera
-            while self.active_writer or self.writers_waiting > 0:
-                print(
-                    f"{color}Lector {reader_id} esperando, hay escritor activo o en espera{RESET}"
-                )
-                self.condition.wait()
-
-            # Incrementar el contador de lectores
+        print(f"{color}Lector {reader_id} quiere leer{RESET}")
+        
+        # Esperar si hay un escritor
+        self.mutex.acquire()
+        
+        try:
             self.readers_count += 1
-
-            # Cambiar el estado del recurso a lectura
-            if self.resource_state == RESOURCE_STATES[0]:  # Si estaba libre
-                self.resource_state = RESOURCE_STATES[1]  # Cambiar a estado de lectura
-
-            print(
-                f"{color}Lector {reader_id} comienza a leer. Lectores activos: {self.readers_count}{RESET}"
-            )
+            if self.readers_count == 1:  # Primer lector
+                # Bloquear el recurso para escritores
+                self.write_lock.acquire()
+                
+                # Actualizar el estado del recurso
+                self.resource_mutex.acquire()
+                self.resource_state = RESOURCE_STATES[1]  # Estado: leyendo
+                self.resource_mutex.release()
+        finally:
+            self.mutex.release()
+            
+        print(f"{color}Lector {reader_id} comienza a leer. Lectores activos: {self.readers_count}{RESET}")
 
     def end_read(self, reader_id: int, color: str):
         """
         Permite que un lector termine de leer el recurso.
-        Notifica a los escritores en espera si no hay más lectores.
+        Libera el recurso para escritores si es el último lector.
 
         Args:
             reader_id (int): ID del lector.
             color (str): Color del lector para imprimir mensajes en la consola.
         """
-        with self.condition:
-            # Decrementar el contador de lectores
+        self.mutex.acquire()
+        
+        try:
             self.readers_count -= 1
-
-            print(
-                f"{color}Lector {reader_id} termina de leer. Lectores activos: {self.readers_count}{RESET}"
-            )
-
-            # Si no hay más lectores, cambiar el estado del recurso a libre
-            if self.readers_count == 0:
-                self.resource_state = RESOURCE_STATES[0]  # Cambiar a estado libre
-                # Notificar a todos los procesos en espera
-                self.condition.notify_all()
+            if self.readers_count == 0:  # Último lector
+                # Liberar el recurso para escritores
+                
+                # Actualizar el estado del recurso
+                self.resource_mutex.acquire()
+                self.resource_state = RESOURCE_STATES[0]  # Estado: libre
+                self.resource_mutex.release()
+                
+                self.write_lock.release()
+        finally:
+            self.mutex.release()
+            
+        print(f"{color}Lector {reader_id} termina de leer. Lectores activos: {self.readers_count}{RESET}")
 
     def start_write(self, writer_id: int, color: str):
         """
@@ -102,54 +107,38 @@ class ReadersWriters:
             writer_id (int): ID del escritor.
             color (str): Color del escritor para imprimir mensajes en la consola.
         """
-        with self.condition:
-            # Incrementar el contador de escritores en espera
-            self.writers_waiting += 1
-
-            # Esperar si hay lectores activos o otro escritor activo
-            while self.readers_count > 0 or self.active_writer:
-                print(
-                    f"{color}Escritor {writer_id} esperando, hay lectores activos o un escritor activo{RESET}"
-                )
-                self.condition.wait()
-
-            # Decrementar el contador de escritores en espera
-            self.writers_waiting -= 1
-
-            # Marcar que hay un escritor activo
-            self.active_writer = True
-
-            # Cambiar el estado del recurso a escritura
-            self.resource_state = RESOURCE_STATES[2]
-
-            print(f"{color}Escritor {writer_id} comienza a escribir{RESET}")
+        print(f"{color}Escritor {writer_id} quiere escribir{RESET}")
+        
+        # Esperar acceso exclusivo al recurso
+        self.write_lock.acquire()
+        
+        # Actualizar el estado del recurso
+        self.resource_mutex.acquire()
+        self.resource_state = RESOURCE_STATES[2]  # Estado: escribiendo
+        self.resource_mutex.release()
+        
+        print(f"{color}Escritor {writer_id} comienza a escribir{RESET}")
 
     def end_write(self, writer_id: int, color: str, new_content: str):
         """
         Permite que un escritor termine de escribir en el recurso.
-        Actualiza el contenido del recurso y notifica a los procesos en espera.
+        Actualiza el contenido del recurso y lo libera.
 
         Args:
             writer_id (int): ID del escritor.
             color (str): Color del escritor para imprimir mensajes en la consola.
             new_content (str): Nuevo contenido para el recurso compartido.
         """
-        with self.condition:
-            # Actualizar el contenido del recurso
-            self.resource_content = new_content
-
-            # Marcar que no hay un escritor activo
-            self.active_writer = False
-
-            # Cambiar el estado del recurso a libre
-            self.resource_state = RESOURCE_STATES[0]
-
-            print(
-                f"{color}Escritor {writer_id} termina de escribir. Nuevo contenido: {self.resource_content}{RESET}"
-            )
-
-            # Notificar a todos los procesos en espera
-            self.condition.notify_all()
+        # Actualizar el contenido y el estado del recurso
+        self.resource_mutex.acquire()
+        self.resource_content = new_content
+        self.resource_state = RESOURCE_STATES[0]  # Estado: libre
+        self.resource_mutex.release()
+        
+        # Liberar el recurso
+        self.write_lock.release()
+        
+        print(f"{color}Escritor {writer_id} termina de escribir. Nuevo contenido: {self.resource_content}{RESET}")
 
     def read_resource(self, reader_id: int, color: str) -> str:
         """
@@ -162,10 +151,9 @@ class ReadersWriters:
         Returns:
             str: Contenido del recurso compartido.
         """
-        with self.condition:
-            content = self.resource_content
-            print(f"{color}Lector {reader_id} leyó: {content}{RESET}")
-            return content
+        content = self.resource_content
+        print(f"{color}Lector {reader_id} leyó: {content}{RESET}")
+        return content
 
 
 class People(ABC, threading.Thread):
@@ -177,7 +165,7 @@ class People(ABC, threading.Thread):
     def __init__(
         self,
         id: int,
-        readers_writers: ReadersWriters,
+        readers_writers: SemaphoreReadersWriters,
         color: str,
         min_time: int,
         max_time: int,
@@ -211,7 +199,7 @@ class Reader(People):
     def __init__(
         self,
         reader_id: int,
-        readers_writers: ReadersWriters,
+        readers_writers: SemaphoreReadersWriters,
         color: str,
         min_reading_time: int = MIN_READING_TIME,
         max_reading_time: int = MAX_READING_TIME,
@@ -219,7 +207,7 @@ class Reader(People):
         max_thinking_time: int = 5,
     ):
         """
-        Inicializa un lector con un ID, un monitor de lectores y escritores y un color para imprimir mensajes.
+        Inicializa un lector con un ID, un gestor de semáforos y un color para imprimir mensajes.
         """
         super().__init__(
             reader_id,
@@ -266,7 +254,7 @@ class Writer(People):
     def __init__(
         self,
         writer_id: int,
-        readers_writers: ReadersWriters,
+        readers_writers: SemaphoreReadersWriters,
         color: str,
         min_writing_time: int = MIN_WRITING_TIME,
         max_writing_time: int = MAX_WRITING_TIME,
@@ -274,7 +262,7 @@ class Writer(People):
         max_thinking_time: int = 8,
     ):
         """
-        Inicializa un escritor con un ID, un monitor de lectores y escritores y un color para imprimir mensajes.
+        Inicializa un escritor con un ID, un gestor de semáforos y un color para imprimir mensajes.
         """
         super().__init__(
             writer_id,
@@ -319,10 +307,10 @@ class Writer(People):
 def main():
     """
     Función principal para iniciar la simulación de los lectores y escritores.
-    Crea una instancia del monitor de lectores y escritores y lanza los hilos de lectores y escritores.
+    Crea una instancia del gestor de semáforos y lanza los hilos de lectores y escritores.
     """
-    # Crear el monitor de lectores y escritores
-    readers_writers = ReadersWriters()
+    # Crear el gestor de semáforos para lectores y escritores
+    readers_writers = SemaphoreReadersWriters()
 
     # Crear lectores
     readers = []
