@@ -829,7 +829,7 @@ class TestSemaphoreReadersWriters(unittest.TestCase):
             
             # Lanzar excepción simulada
             raise Exception("Excepción simulada")
-        except:
+        except Exception:
             # Asegurar que se libera el recurso en el bloque finally
             rw.end_read(0, "")
         
